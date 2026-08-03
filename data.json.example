@@ -1,0 +1,45 @@
+{
+  "blocks": [
+    {
+      "id": 1,
+      "date": "2026-08-03",
+      "title": "Estudar para a prova de sistemas distribuídos",
+      "start_time": "09:00",
+      "end_time": "11:00",
+      "priority": "alta",
+      "completed": false,
+      "completed_at": null,
+      "created_at": "2026-08-03T09:00:00.000Z",
+      "logs": [
+        { "id": 1, "time": "09:15", "description": "Revisar capítulo sobre consenso distribuído" },
+        { "id": 2, "time": "10:00", "description": "Resolver exercícios do capítulo 4" }
+      ]
+    },
+    {
+      "id": 2,
+      "date": "2026-08-03",
+      "title": "Almoço",
+      "start_time": "12:00",
+      "end_time": "13:00",
+      "priority": "baixa",
+      "completed": true,
+      "completed_at": "2026-08-03T13:00:00.000Z",
+      "created_at": "2026-08-03T09:00:00.000Z",
+      "logs": []
+    },
+    {
+      "id": 3,
+      "date": "2026-08-03",
+      "title": "Reunião de projeto",
+      "start_time": "14:00",
+      "end_time": "15:00",
+      "priority": "media",
+      "completed": false,
+      "completed_at": null,
+      "created_at": "2026-08-03T09:00:00.000Z",
+      "logs": []
+    }
+  ],
+  "nextBlockId": 4,
+  "nextLogId": 3
+}

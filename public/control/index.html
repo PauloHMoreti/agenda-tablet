@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda — Controle</title>
+<style>
+  :root {
+    --ink: #1a1d1f;
+    --paper: #fbfaf7;
+    --line: #dcd8cf;
+    --accent: #2f5d50;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    padding: 20px 16px 60px;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 19px; margin: 0 0 2px; }
+  .sub { color: #6b6f66; font-size: 13px; margin-bottom: 14px; }
+
+  .notif-banner {
+    background: #fff8e6; border: 1px solid #edd79b; border-radius: 10px;
+    padding: 10px 12px; font-size: 13px; margin-bottom: 14px; display: flex;
+    align-items: center; gap: 8px; justify-content: space-between;
+  }
+  .notif-banner button { font-size: 12.5px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--accent);
+                          background: var(--accent); color: #fff; cursor: pointer; }
+  .notif-banner.ok { background: #eaf5ec; border-color: #bfe0c9; }
+
+  .block {
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; border-left: 8px solid #ccc;
+    background: #fff;
+  }
+  .block.current { box-shadow: 0 0 0 2px rgba(0,0,0,0.06); }
+  .block-time { font-family: monospace; font-weight: 700; font-size: 14px; }
+  .block-title { font-size: 17px; font-weight: 600; margin: 4px 0 6px; }
+  .badge { display:inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+           letter-spacing: .03em; padding: 3px 9px; border-radius: 20px; margin-bottom: 8px; }
+  .badge.pendente { background:#eee; color:#666; }
+  .badge.em_andamento { background:#e6eef5; color:#2c5b82; }
+  .badge.concluida { background:#e8efe9; color:#2f5d50; }
+  .badge.atrasada { background:#a3241a; color:#fff; }
+
+  .logs { margin: 8px 0; font-size: 13px; color: #444; }
+  .logs .log-row { padding: 2px 0; }
+  .logs .lt { font-family: monospace; font-weight: 700; margin-right: 6px; }
+
+  .row-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  button.act { flex: 1; min-width: 90px; font-size: 13.5px; padding: 9px 10px; border-radius: 8px;
+               border: 1px solid var(--line); background: #f5f4ef; cursor: pointer; }
+  button.act.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .log-add { display:flex; gap:6px; margin-top: 8px; }
+  .log-add input[type=text] { flex:1; font-size: 14px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+  .log-add button { font-size: 13px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+
+  .empty { color: #8b8f83; font-size: 14px; padding: 20px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Controle do dia</h1>
+    <div class="sub">Marque conclusão, estenda o tempo e registre o que foi feito. Use esta tela no celular ou PC.</div>
+  </header>
+
+  <div class="notif-banner" id="notifBanner">
+    <span id="notifText">Carregando...</span>
+    <button id="btnNotif">Ativar</button>
+  </div>
+  <div class="sub" id="notifHint" style="margin-top:-8px; margin-bottom:14px;"></div>
+
+  <div id="blocksList"></div>
+  <div class="empty" id="emptyMsg" style="display:none;">Nenhum bloco para hoje ainda. Crie um no painel /admin.</div>
+</div>
+
+<script>
+const STATUS_LABELS = { pendente: 'Pendente', em_andamento: 'Em andamento', atrasada: 'Atrasada', concluida: 'Concluída' };
+const PRIORITY_BORDER = { alta: '#c0392f', media: '#c07f1f', baixa: '#2f7d52' };
+const notifiedKey = (id, date) => `notified_${date}_${id}`;
+
+function todayStr() {
+  const d = new Date();
+  const tz = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return tz.toISOString().slice(0, 10);
+}
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+const notifBanner = document.getElementById('notifBanner');
+const notifText = document.getElementById('notifText');
+const notifHint = document.getElementById('notifHint');
+const btnNotif = document.getElementById('btnNotif');
+
+// Notificações nativas do navegador só funcionam em "contexto seguro" (HTTPS ou localhost).
+// Como o servidor roda em HTTP na rede local, usamos som + título da aba piscando como
+// alerta padrão, e ativamos notificação nativa de verdade só se o navegador permitir.
+const hasSecureNotifications = window.isSecureContext && ('Notification' in window);
+
+let alertsEnabled = false;
+let audioCtx = null;
+const originalTitle = document.title;
+let titleFlashOn = false;
+let hasOverdue = false;
+
+function beep() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.35, audioCtx.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.4);
+  } catch (e) { /* áudio indisponível, ignora */ }
+  if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
+}
+
+setInterval(() => {
+  if (!hasOverdue) { document.title = originalTitle; return; }
+  titleFlashOn = !titleFlashOn;
+  document.title = titleFlashOn ? '⚠ Bloco atrasado!' : originalTitle;
+}, 1000);
+
+function refreshNotifBanner() {
+  if (hasSecureNotifications) {
+    if (Notification.permission === 'granted') {
+      notifBanner.classList.add('ok');
+      notifText.textContent = 'Notificações do navegador ativadas.';
+      notifHint.textContent = '';
+      btnNotif.style.display = 'none';
+    } else {
+      notifBanner.classList.remove('ok');
+      notifText.textContent = 'Ative as notificações para ser avisado quando um bloco atrasar.';
+      notifHint.textContent = '';
+      btnNotif.style.display = 'inline-block';
+      btnNotif.textContent = 'Ativar';
+    }
+  } else {
+    if (alertsEnabled) {
+      notifBanner.classList.add('ok');
+      notifText.textContent = 'Alertas sonoros ativados.';
+      notifHint.textContent = '';
+      btnNotif.style.display = 'none';
+    } else {
+      notifBanner.classList.remove('ok');
+      notifText.textContent = 'Ative o som para ser avisado quando um bloco atrasar.';
+      notifHint.textContent = 'Notificação nativa do navegador exige HTTPS — usando som + título da aba como alerta.';
+      btnNotif.style.display = 'inline-block';
+      btnNotif.textContent = 'Ativar som';
+    }
+  }
+}
+
+btnNotif.addEventListener('click', () => {
+  if (hasSecureNotifications) {
+    Notification.requestPermission().then(refreshNotifBanner);
+  } else {
+    // O clique é o "gesto do usuário" necessário pra desbloquear áudio no navegador
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.resume().then(() => {
+      alertsEnabled = true;
+      beep();
+      refreshNotifBanner();
+    });
+  }
+});
+refreshNotifBanner();
+
+function alertOverdue(title) {
+  if (hasSecureNotifications && Notification.permission === 'granted') {
+    new Notification('Tempo encerrado: ' + title, { body: 'Marque como concluída ou adicione mais tempo.' });
+  }
+  if (alertsEnabled) beep();
+}
+
+async function loadBlocks() {
+  const date = todayStr();
+  const res = await fetch('/api/blocks?date=' + date);
+  const blocks = await res.json();
+  const list = document.getElementById('blocksList');
+  document.getElementById('emptyMsg').style.display = blocks.length === 0 ? 'block' : 'none';
+  list.innerHTML = '';
+
+  hasOverdue = blocks.some(b => b.status === 'atrasada' && !b.completed);
+
+  for (const b of blocks) {
+    // Dispara alerta se o bloco acabou de virar "atrasada" e ainda não foi alertado
+    if (b.status === 'atrasada' && !b.completed) {
+      const key = notifiedKey(b.id, date);
+      if (!localStorage.getItem(key)) {
+        alertOverdue(b.title);
+        localStorage.setItem(key, '1');
+      }
+    }
+
+    const border = b.status === 'atrasada' ? '#a3241a' : (PRIORITY_BORDER[b.priority] || '#c07f1f');
+    const el = document.createElement('div');
+    el.className = 'block' + (b.status === 'em_andamento' ? ' current' : '');
+    el.style.borderLeftColor = border;
+
+    const logsHtml = b.logs.map(l => `<div class="log-row"><span class="lt">${l.time}</span>${escapeHtml(l.description)}</div>`).join('');
+
+    el.innerHTML = `
+      <span class="badge ${b.status}">${STATUS_LABELS[b.status]}</span>
+      <div class="block-time">${b.start_time}–${b.end_time}</div>
+      <div class="block-title">${escapeHtml(b.title)}</div>
+      <div class="logs">${logsHtml}</div>
+      <div class="log-add">
+        <input type="text" class="log-desc" placeholder="Registrar o que foi feito...">
+        <button class="add-log" data-block="${b.id}">Registrar</button>
+      </div>
+      <div class="row-actions">
+        ${b.completed
+          ? `<button class="act reopen" data-block="${b.id}">Reabrir</button>`
+          : `<button class="act primary complete" data-block="${b.id}">✓ Concluir</button>
+             <button class="act extend" data-block="${b.id}" data-min="30">+30 min</button>`
+        }
+      </div>
+    `;
+    list.appendChild(el);
+  }
+
+  list.querySelectorAll('.complete').forEach(btn => btn.addEventListener('click', async () => {
+    await fetch(`/api/blocks/${btn.dataset.block}/complete`, { method: 'POST' });
+    loadBlocks();
+  }));
+  list.querySelectorAll('.reopen').forEach(btn => btn.addEventListener('click', async () => {
+    await fetch(`/api/blocks/${btn.dataset.block}/reopen`, { method: 'POST' });
+    loadBlocks();
+  }));
+  list.querySelectorAll('.extend').forEach(btn => btn.addEventListener('click', async () => {
+    await fetch(`/api/blocks/${btn.dataset.block}/extend`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutes: Number(btn.dataset.min) })
+    });
+    // Remove o "já notificado" já que o bloco ganhou um novo horário de término
+    localStorage.removeItem(notifiedKey(btn.dataset.block, todayStr()));
+    loadBlocks();
+  }));
+  list.querySelectorAll('.add-log').forEach(btn => btn.addEventListener('click', async () => {
+    const row = btn.closest('.log-add');
+    const description = row.querySelector('.log-desc').value.trim();
+    if (!description) return;
+    await fetch(`/api/blocks/${btn.dataset.block}/logs`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description })
+    });
+    loadBlocks();
+  }));
+}
+
+loadBlocks();
+setInterval(loadBlocks, 30000);
+</script>
+</body>
+</html>

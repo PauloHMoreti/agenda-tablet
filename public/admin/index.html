@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda — Painel</title>
+<style>
+  :root {
+    --ink: #1a1d1f;
+    --paper: #fbfaf7;
+    --line: #dcd8cf;
+    --accent: #2f5d50;
+    --danger: #a3402f;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    padding: 32px 20px 80px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; }
+  header { margin-bottom: 20px; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: #6b6f66; font-size: 14px; }
+
+  .datebar { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--line);
+             border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+  .datebar input[type=date] { border: none; font-size: 15px; font-family: inherit; background: transparent; flex: 1; }
+  .daylabel { font-size: 13px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .navbtn { border: 1px solid var(--line); background: #f5f4ef; border-radius: 8px; width: 32px; height: 32px;
+            font-size: 15px; cursor: pointer; flex-shrink: 0; display:flex; align-items:center; justify-content:center; }
+  .navbtn:hover { background: #ebe9e2; }
+
+  .actions { display:flex; gap:8px; margin-bottom: 16px; flex-wrap: wrap; }
+  button { font-family: inherit; font-size: 14px; cursor: pointer; border-radius: 8px;
+           border: 1px solid var(--line); background: #fff; padding: 8px 12px; color: var(--ink); }
+  button:hover { background: #f2f0ea; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { background: #26473d; }
+  button.small { padding: 5px 9px; font-size: 12.5px; }
+
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #6b6f66; margin: 0 0 12px; }
+
+  .form-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .form-row input[type=time] { width: 100px; font-family: var(--mono); font-size: 14px;
+                                border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  .form-row input[type=text] { flex: 1; min-width: 160px; font-size: 15px; border: 1px solid var(--line);
+                                border-radius: 8px; padding: 8px 10px; }
+  select.priority { border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 14px; font-family: inherit; }
+
+  .block { border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; border-left: 8px solid #ccc; }
+  .block-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .block-time { font-family: var(--mono); font-weight: 700; font-size: 14px; }
+  .block-title { flex: 1; font-size: 15.5px; font-weight: 600; }
+  .badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+           padding: 3px 8px; border-radius: 20px; border: 1px solid transparent; }
+  .badge.pendente { background:#eee; color:#666; }
+  .badge.em_andamento { background:#e6eef5; color:#2c5b82; }
+  .badge.concluida { background:#e8efe9; color:#2f5d50; }
+  .badge.atrasada { background:#a3241a; color:#fff; }
+
+  .block-actions { display:flex; gap:6px; margin-top:10px; flex-wrap: wrap; }
+
+  .edit-form { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+  .edit-form input[type=time] { width: 90px; font-family: var(--mono); font-size: 13px; padding: 6px;
+                                 border: 1px solid var(--line); border-radius: 6px; }
+  .edit-form input[type=text] { flex: 1; min-width: 140px; font-size: 13.5px; padding: 6px 8px;
+                                 border: 1px solid var(--line); border-radius: 6px; }
+  .edit-form select { font-size: 13px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; font-family: inherit; }
+
+  .logs { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+  .log-row { display:flex; align-items:center; gap:8px; font-size: 13.5px; padding: 3px 0; }
+  .log-row .lt { font-family: var(--mono); font-weight: 700; width: 46px; flex-shrink:0; }
+  .log-row .ld { flex: 1; }
+  .log-row button { padding: 2px 6px; font-size: 11px; }
+  .log-add { display:flex; gap:6px; margin-top: 8px; }
+  .log-add input[type=time] { width: 84px; font-family: var(--mono); font-size: 13px; padding: 6px;
+                               border: 1px solid var(--line); border-radius: 6px; }
+  .log-add input[type=text] { flex:1; font-size: 13.5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+
+  .empty { color: #8b8f83; font-size: 14px; padding: 8px 0; }
+  footer.hint { margin-top: 22px; font-size: 12.5px; color: #8b8f83; text-align: center; }
+  footer.hint a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Agenda do tablet</h1>
+    <div class="sub">Blocos de tempo com prioridade, registros e detecção automática de atraso.</div>
+  </header>
+
+  <div class="datebar">
+    <button class="navbtn" id="btnPrevDay" title="Dia anterior">◀</button>
+    <span class="daylabel" id="daylabel">HOJE</span>
+    <input type="date" id="datePicker">
+    <button class="navbtn" id="btnNextDay" title="Próximo dia">▶</button>
+  </div>
+
+  <div class="actions">
+    <button id="btnToday">Ir para hoje</button>
+    <button id="btnCopy">Copiar blocos de ontem</button>
+    <a href="/admin/calendario.html"><button>📅 Calendário</button></a>
+    <a href="/display" target="_blank"><button class="primary">Ver tela do tablet ↗</button></a>
+    <a href="/control" target="_blank"><button>Ver tela de controle ↗</button></a>
+  </div>
+
+  <div class="card">
+    <h2>Novo bloco de tempo</h2>
+    <div class="form-row">
+      <input type="time" id="newStart" value="10:00">
+      <input type="time" id="newEnd" value="11:00">
+      <select class="priority" id="newPriority">
+        <option value="alta">Alta</option>
+        <option value="media" selected>Média</option>
+        <option value="baixa">Baixa</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <input type="text" id="newTitle" placeholder="Ex: Trabalhar no sistema AptivIA">
+    </div>
+    <button class="primary" id="btnAdd" style="width:100%;">Adicionar bloco</button>
+  </div>
+
+  <div class="card">
+    <h2>Blocos do dia</h2>
+    <div id="blocksList"></div>
+    <div class="empty" id="emptyMsg" style="display:none;">Nenhum bloco para esta data ainda.</div>
+  </div>
+
+  <footer class="hint">
+    Tela do tablet: <a href="/display" target="_blank">/display</a> (passiva, sem interação) —
+    Tela de controle: <a href="/control" target="_blank">/control</a> (use no celular/PC, com notificações)
+  </footer>
+</div>
+
+<script>
+const PRIORITIES = {
+  alta:  { label: 'Alta',  border: '#c0392f', bg: '#fdecea' },
+  media: { label: 'Média', border: '#c07f1f', bg: '#fef3e2' },
+  baixa: { label: 'Baixa', border: '#2f7d52', bg: '#eaf5ec' }
+};
+const STATUS_LABELS = { pendente: 'Pendente', em_andamento: 'Em andamento', atrasada: 'Atrasada', concluida: 'Concluída' };
+
+const datePicker = document.getElementById('datePicker');
+const daylabel = document.getElementById('daylabel');
+const blocksList = document.getElementById('blocksList');
+const emptyMsg = document.getElementById('emptyMsg');
+
+function todayStr() {
+  const d = new Date();
+  const tz = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return tz.toISOString().slice(0, 10);
+}
+function prevDayStr(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() - 1);
+  const tz = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return tz.toISOString().slice(0, 10);
+}
+function nextDayStr(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + 1);
+  const tz = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return tz.toISOString().slice(0, 10);
+}
+const DIAS = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+function labelFor(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const isToday = dateStr === todayStr();
+  return (isToday ? 'HOJE — ' : '') + DIAS[d.getDay()];
+}
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function loadBlocks() {
+  const date = datePicker.value;
+  daylabel.textContent = labelFor(date);
+  const res = await fetch('/api/blocks?date=' + date);
+  const blocks = await res.json();
+  blocksList.innerHTML = '';
+  emptyMsg.style.display = blocks.length === 0 ? 'block' : 'none';
+
+  for (const b of blocks) {
+    const p = PRIORITIES[b.priority] || PRIORITIES.media;
+    const el = document.createElement('div');
+    el.className = 'block';
+    el.style.borderLeftColor = b.status === 'atrasada' ? '#a3241a' : p.border;
+    el.style.background = p.bg;
+
+    const logsHtml = b.logs.map(l => `
+      <div class="log-row">
+        <span class="lt">${l.time}</span>
+        <span class="ld">${escapeHtml(l.description)}</span>
+        <button class="del-log" data-block="${b.id}" data-log="${l.id}">excluir</button>
+      </div>`).join('');
+
+    el.innerHTML = `
+      <div class="block-head">
+        <span class="block-time">${b.start_time}–${b.end_time}</span>
+        <span class="block-title">${escapeHtml(b.title)}</span>
+        <span class="badge ${b.status}">${STATUS_LABELS[b.status]}</span>
+      </div>
+      <div class="edit-form" data-block="${b.id}" style="display:none;">
+        <input type="time" class="edit-start" value="${b.start_time}">
+        <input type="time" class="edit-end" value="${b.end_time}">
+        <select class="edit-priority">
+          <option value="alta" ${b.priority === 'alta' ? 'selected' : ''}>Alta</option>
+          <option value="media" ${b.priority === 'media' ? 'selected' : ''}>Média</option>
+          <option value="baixa" ${b.priority === 'baixa' ? 'selected' : ''}>Baixa</option>
+        </select>
+        <input type="text" class="edit-title" value="${escapeHtml(b.title)}">
+        <button class="small primary save-edit" data-block="${b.id}">Salvar</button>
+        <button class="small cancel-edit" data-block="${b.id}">Cancelar</button>
+      </div>
+      <div class="logs">
+        ${logsHtml}
+        <div class="log-add">
+          <input type="time" class="log-time" value="${nowTime()}">
+          <input type="text" class="log-desc" placeholder="Registrar o que foi feito...">
+          <button class="small add-log" data-block="${b.id}">+ registrar</button>
+        </div>
+      </div>
+      <div class="block-actions">
+        ${b.completed
+          ? `<button class="small reopen" data-block="${b.id}">Reabrir</button>`
+          : `<button class="small primary complete" data-block="${b.id}">✓ Concluir</button>
+             <button class="small extend" data-block="${b.id}" data-min="15">+15min</button>
+             <button class="small extend" data-block="${b.id}" data-min="30">+30min</button>`
+        }
+        <button class="small edit-block" data-block="${b.id}">Editar</button>
+        <button class="small del-block" data-block="${b.id}" style="margin-left:auto;color:var(--danger);">Excluir bloco</button>
+      </div>
+    `;
+    blocksList.appendChild(el);
+  }
+
+  blocksList.querySelectorAll('.edit-block').forEach(btn => btn.addEventListener('click', () => {
+    const card = btn.closest('.block');
+    card.querySelector('.edit-form').style.display = 'flex';
+  }));
+  blocksList.querySelectorAll('.cancel-edit').forEach(btn => btn.addEventListener('click', () => {
+    const card = btn.closest('.block');
+    card.querySelector('.edit-form').style.display = 'none';
+  }));
+  blocksList.querySelectorAll('.save-edit').forEach(btn => btn.addEventListener('click', async () => {
+    const form = btn.closest('.edit-form');
+    const title = form.querySelector('.edit-title').value.trim();
+    const start_time = form.querySelector('.edit-start').value;
+    const end_time = form.querySelector('.edit-end').value;
+    const priority = form.querySelector('.edit-priority').value;
+    if (!title) return;
+    await fetch(`/api/blocks/${btn.dataset.block}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, start_time, end_time, priority })
+    });
+    loadBlocks();
+  }));
+
+  blocksList.querySelectorAll('.complete').forEach(btn => btn.addEventListener('click', async () => {
+    await fetch(`/api/blocks/${btn.dataset.block}/complete`, { method: 'POST' });
+    loadBlocks();
+  }));
+  blocksList.querySelectorAll('.reopen').forEach(btn => btn.addEventListener('click', async () => {
+    await fetch(`/api/blocks/${btn.dataset.block}/reopen`, { method: 'POST' });
+    loadBlocks();
+  }));
+  blocksList.querySelectorAll('.extend').forEach(btn => btn.addEventListener('click', async () => {
+    await fetch(`/api/blocks/${btn.dataset.block}/extend`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutes: Number(btn.dataset.min) })
+    });
+    loadBlocks();
+  }));
+  blocksList.querySelectorAll('.del-block').forEach(btn => btn.addEventListener('click', async () => {
+    if (!confirm('Excluir este bloco e todos os registros dele?')) return;
+    await fetch(`/api/blocks/${btn.dataset.block}`, { method: 'DELETE' });
+    loadBlocks();
+  }));
+  blocksList.querySelectorAll('.del-log').forEach(btn => btn.addEventListener('click', async () => {
+    await fetch(`/api/blocks/${btn.dataset.block}/logs/${btn.dataset.log}`, { method: 'DELETE' });
+    loadBlocks();
+  }));
+  blocksList.querySelectorAll('.add-log').forEach(btn => btn.addEventListener('click', async () => {
+    const row = btn.closest('.log-add');
+    const time = row.querySelector('.log-time').value;
+    const description = row.querySelector('.log-desc').value.trim();
+    if (!description) return;
+    await fetch(`/api/blocks/${btn.dataset.block}/logs`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ time, description })
+    });
+    loadBlocks();
+  }));
+}
+
+function nowTime() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+document.getElementById('btnAdd').addEventListener('click', async () => {
+  const title = document.getElementById('newTitle').value.trim();
+  if (!title) return;
+  await fetch('/api/blocks', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      date: datePicker.value,
+      title,
+      start_time: document.getElementById('newStart').value,
+      end_time: document.getElementById('newEnd').value,
+      priority: document.getElementById('newPriority').value
+    })
+  });
+  document.getElementById('newTitle').value = '';
+  loadBlocks();
+});
+
+document.getElementById('btnToday').addEventListener('click', () => {
+  datePicker.value = todayStr();
+  loadBlocks();
+});
+
+document.getElementById('btnCopy').addEventListener('click', async () => {
+  const toDate = datePicker.value;
+  const fromDate = prevDayStr(toDate);
+  await fetch('/api/blocks/copy', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fromDate, toDate })
+  });
+  loadBlocks();
+});
+
+document.getElementById('btnPrevDay').addEventListener('click', () => {
+  datePicker.value = prevDayStr(datePicker.value);
+  loadBlocks();
+});
+document.getElementById('btnNextDay').addEventListener('click', () => {
+  datePicker.value = nextDayStr(datePicker.value);
+  loadBlocks();
+});
+
+datePicker.addEventListener('change', loadBlocks);
+const urlParams = new URLSearchParams(window.location.search);
+datePicker.value = urlParams.get('date') || todayStr();
+loadBlocks();
+setInterval(loadBlocks, 60000);
+</script>
+</body>
+</html>
