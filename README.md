@@ -83,7 +83,7 @@ código, e depurar problemas reais que só apareceram durante a instalação no 
 ## Como funciona o fluxo de "bloco de tempo"
 
 1. No `/admin` (ou `/control`), crie um bloco base: título, horário de início/fim,
-   prioridade. Ex: "Trabalhar no sistema X", 10:00–12:00, Alta.
+   prioridade. Ex: "Trabalhar no sistema AptivIA", 10:00–12:00, Alta.
 2. Durante esse período, vá registrando o que você realmente fez (ex: "Adicionar
    função x no sistema A") — cada registro tem um horário próprio.
 3. Quando o horário do bloco terminar:

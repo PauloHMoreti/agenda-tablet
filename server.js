@@ -282,7 +282,9 @@ app.post('/api/blocks/copy', (req, res) => {
 app.get('/display', (req, res) => {
   const date = req.query.date || todayStr();
   const db = loadDB();
-  const blocks = blocksForDate(db, date).map(serializeBlock);
+  const allBlocks = blocksForDate(db, date).map(serializeBlock);
+  const concluidos = allBlocks.filter(b => b.status === 'concluida').length;
+  const blocks = allBlocks.filter(b => b.status !== 'concluida');
 
   const cards = blocks.map(b => {
     const p = PRIORITIES[b.priority] || PRIORITIES.media;
@@ -331,8 +333,8 @@ app.get('/display', (req, res) => {
 <body>
 <h1>${escapeHtml(formatDateLabel(date))}</h1>
 ${cards}
-${blocks.length === 0 ? '<div class="empty">Nada agendado para hoje.</div>' : ''}
-<div class="updated">atualizado ${new Date().toLocaleTimeString('pt-BR')}</div>
+${blocks.length === 0 ? `<div class="empty">${allBlocks.length === 0 ? 'Nada agendado para hoje.' : 'Tudo concluído por hoje! 🎉'}</div>` : ''}
+<div class="updated">${concluidos > 0 ? `${concluidos} concluída${concluidos > 1 ? 's' : ''} hoje &middot; ` : ''}atualizado ${new Date().toLocaleTimeString('pt-BR')}</div>
 </body>
 </html>`);
 });
